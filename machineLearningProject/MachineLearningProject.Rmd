@@ -1,0 +1,127 @@
+---
+title: "practicalMachineLearningProject Classification Tree"
+author: "Patrick"
+date: "2/21/2017"
+output: html_document
+---
+
+
+## Goal:
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(caret)
+library(randomForest)
+library(repmis)
+library(rpart)
+library(rpart.plot)
+
+```
+
+```{r}
+setwd("~/Documents/DataSci_Coursera_WorkingDir/class8_machine_learning/machineLearningProject")
+testingSet <- read.csv("pml-testing.csv", header = TRUE)
+trainingSet <- read.csv("pml-training.csv", header = TRUE)
+```
+
+
+## Data Cleaning
+first thing we need to do is remove columns with missing sets of data
+
+```{r}
+
+trainingSet <- trainingSet[ ,colSums(is.na(trainingSet)) == 0 ]
+testingSet <- testingSet[ ,colSums(is.na(trainingSet)) == 0]
+
+## remove demographic and descriptive information:
+
+trainingSet <- trainingSet[,-c(1:7)]
+testingSet <- testingSet[,-c(1:7)]
+
+# next we remove colums with the rest of the missing information
+
+trainingSet <- trainingSet[,-c(5:13, 36:41, 45:53, 67:75)]
+trainingSet$magnet_belt_x <- NULL
+
+```
+
+
+
+## Partition Data
+
+next we need to partition the training data into a trainings set for training our model.
+
+```{r}
+set.seed(123)
+inTrain <- createDataPartition(trainingSet$classe, p = 0.7, list = FALSE)
+train1 <- trainingSet[inTrain, ]
+train0 <- trainingSet[-inTrain, ]
+```
+
+## Classification Tree
+For this assignment we can use a classification tree to predict the class based on variable characteristics.
+
+```{r}
+c0 <- trainControl(method = "cv", number = 5)
+fit_rpart <- train(classe ~., data = train1, method = "rpart",
+                   trControl = c0)
+print(fit_rpart, digits = 4)
+```
+
+```{r}
+rpart.plot(fit_rpart$finalModel)
+```
+
+
+## Prediction using validation set.
+
+```{r}
+
+predictv0 <- predict(fit_rpart, train0)
+validRPart <- confusionMatrix(train0$classe, predictv0)
+print(validRPart)
+
+```
+
+The Overall Statistics indicate a accuract rate of .55. The classification tree does not seems to predict the outcome of the classes accurately.
+
+## Random Forests.
+another method we can try to predict classes is random forests.
+
+
+```{r}
+
+set.seed(123)
+
+forest1 <- randomForest(classe ~., data = train1)
+print(forest1, digit = 3)
+
+## apply to training set.
+prediction1 <- predict(forest1, train0, type = "class")
+confusionMatrix(prediction1, train0$classe)
+
+```
+
+NICE! it seems that our RF model is able to predict the case with a accturacy of .9944
+
+## Testing Set Prediction
+Now we can use the model we built on the final testing set:
+
+```{r}
+predict(forest1, testingSet)
+```
+
+
+
+
+
+
+
+
+
